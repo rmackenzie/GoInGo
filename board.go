@@ -53,10 +53,9 @@ func (f Board) move(pair Pair, p int) (bool) {
 		return false
 	} 
 
-	f.board[pair.x-1][pair.y-1] = p
-	//check liberties
-	//check for ko
+	f.board[pair.x][pair.y] = p
 	
+	//TODO: IMPLEMENT ANY EFFECTS ON CAPTURES
 	return true
 }
 
@@ -256,6 +255,28 @@ func (f Board) copy() Board {
 }
 
 /**
+* Move struct is a pair + a player
+* ///////////////////////////////////////////////////////// START MOVE METHODS /////////////////////////////////////////////////
+*/
+
+type Move struct{
+	pair Pair
+	p int
+}
+
+func (f Move) equals(move Move) bool {
+	return (f.pair.equals(move.pair) && f.p == move.p)
+}
+
+func (f Move) Print() {
+	fmt.Print(f.pair)
+	fmt.Print(" , Player: ")
+	fmt.Println(f.p)
+}
+
+
+
+/**
 * Will use stacks for counting liberties
 * /////////////////////////////////////////////////////// START STACK METHODS //////////////////////////////////////////////////
 */
@@ -322,6 +343,7 @@ func (f Pair) equals(pair Pair) bool {
 
 /**
 * Use lists for keeping track of things counted
+* Would be nice to use generics but I don't really get how to implement the same functionality in go
 * /////////////////////////////////////////////////////// START ARRAYLIST METHODS ///////////////////////////////////////////////
 */
 
@@ -370,6 +392,59 @@ func (f ArrayList) Print() {
 func (f ArrayList) Last() Pair {
 	return f.array[f.last]
 }
+
+/**
+* A move ArrayList, only because I don't know how generics work in go
+*/
+
+type MoveArrayList struct{
+	array []Move
+	last int
+}
+
+func newMoveArrayList() *MoveArrayList {
+	f := new(MoveArrayList)
+	f.array = make([]Move, 0, 10)
+	f.last = -1
+	return f
+}
+
+func (f *MoveArrayList) add(move Move) {
+	if f.last+1 >= cap(f.array) {
+		newArray := make([]Move, len(f.array), (cap(f.array)+1)*2)
+		copy(newArray, f.array)
+		f.array = newArray
+	}
+	f.last++
+	f.array = f.array[:f.last+1]
+	f.array[f.last] = move
+}
+
+func (f MoveArrayList) member(move Move) bool {
+	for i := range f.array {
+		if move.equals(f.array[i]) {
+			return true
+		}
+	}
+	return false
+}
+
+func (f MoveArrayList) length() int {
+	return len(f.array)
+}
+
+func (f MoveArrayList) Print() {
+	for i := range f.array {
+		f.array[i].Print()
+	}
+}
+
+func (f MoveArrayList) Last() Move {
+	return f.array[f.last]
+}
+
+
+
 
 func main() {
 	board := newBoard()
