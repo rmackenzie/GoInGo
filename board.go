@@ -11,6 +11,9 @@ import "fmt"
 */
 type Board struct{
 	board [][]int
+	maxX int
+	maxY int
+	moveList *ArrayList
 }
 
 func newBoard() *Board {
@@ -21,6 +24,9 @@ func newBoard() *Board {
 	for i := range f.board {
 		f.board[i] = make([]int, 19)
 	}
+	f.moveList = newArrayList()
+	f.maxX = 18
+	f.maxY = 18
 	return f
 }
 
@@ -61,17 +67,16 @@ func (f Board) move(pair Pair, p int) (bool) {
 * Until the stack is empty, check the adjacent spaces for every stone, adding each liberty to a list
 * Return the length of the list
 */
-func (f Board) checkLibs(pair Pair) int {
+func (f Board) checkLibs(pair Pair, p int) int {
 
 	//if the pair to check is out of the bounds of the board
-	if pair.x < 0 || pair.x > 18 || pair.y < 0 || pair.y > 18 {
+	if pair.x < 0 || pair.x > f.maxX || pair.y < 0 || pair.y > f.maxY {
 		return -1
 	}
 
 	stack := newStack()
 	checkedPairs := newArrayList()
 	liberties := newArrayList()
-	p := f.board[pair.x][pair.y]
 
 	stack.push(newPair(pair.x,pair.y))
 	for !stack.isEmpty() {
@@ -103,7 +108,7 @@ func (f Board) checkLibs(pair Pair) int {
 			}
 
 			//check to the right
-			if checkPair.x+1 <= 18 {
+			if checkPair.x+1 <= f.maxX {
 				if f.board[checkPair.x+1][checkPair.y] == p {
 					stack.push(newPair(checkPair.x+1, checkPair.y))
 				} else if f.board[checkPair.x+1][checkPair.y] == 0 {
@@ -114,7 +119,7 @@ func (f Board) checkLibs(pair Pair) int {
 				}
 			}
 
-			if checkPair.y+1 <= 18 {
+			if checkPair.y+1 <= f.maxY {
 				if f.board[checkPair.x][checkPair.y+1] == p {
 					stack.push(newPair(checkPair.x, checkPair.y+1))
 				} else if f.board[checkPair.x][checkPair.y+1] == 0 {
@@ -127,7 +132,6 @@ func (f Board) checkLibs(pair Pair) int {
 		}
 		checkedPairs.add(*checkPair)
 	}
-	liberties.Print()
 	return liberties.length()
 }
 
@@ -135,8 +139,120 @@ func (f Board) checkLibs(pair Pair) int {
 * Checks if a given move is valid
 */
 func (f Board) validMove(pair Pair, p int) bool {
-	//TODO: IMPLEMENTATION
-	return false
+	fmt.Println("in valid move")
+	//In go, a move is valid unless:
+	//You place a stone where it would have no liberties (be immediately captured) without creating a liberty
+	//You place a stone that returns the board exactly to its previous position
+
+	//within board boundaries
+	if pair.x < 0 || pair.x > f.maxX || pair.y < 0 || pair.y > f.maxY {
+		fmt.Println("out of boundaries")
+		return false
+	}	
+
+	//on top of another stone
+	if f.board[pair.x][pair.y] != 0 {
+		fmt.Println("on top of stone")
+		return false
+	}		
+
+	//check to see if would have 0 liberties
+	testBoard := f.copy()
+	testBoard.board[pair.x][pair.y] = p
+	if !(testBoard.checkLibs(pair, p) > 0) {
+		//check to see if it will create a liberty
+		//check if any of the adjacent stones have only 1 liberty
+		//since we already checked that this lib is open, they necessarily have only this liberty
+		//if it does make a liberty, we still must check to see if is a ko situation
+		makesLib := 0
+
+		//left
+		if pair.x-1 > 0 {
+			fmt.Println("check left")
+			checkLeft := newPair(pair.x-1,pair.y)
+			if f.checkLibs(*checkLeft, f.board[checkLeft.x][checkLeft.y]) == 1 {
+				makesLib++
+			}
+		}
+		//above
+		if pair.y-1 > 0 {
+			fmt.Println("check above")
+			checkAbove := newPair(pair.x,pair.y-1)
+			if f.checkLibs(*checkAbove, f.board[checkAbove.x][checkAbove.y]) == 1 {
+				makesLib++
+			}
+		}	
+
+		//right
+		if pair.x+1 < f.maxX {
+			fmt.Println("check right")
+			checkRight := newPair(pair.x+1,pair.y)
+			if f.checkLibs(*checkRight, f.board[checkRight.x][checkRight.y]) == 1 {
+				makesLib++
+			}
+		}
+
+		//below
+		if pair.y+1 < f.maxY {
+			fmt.Println("check below")
+			checkBelow := newPair(pair.x,pair.y+1)
+			if f.checkLibs(*checkBelow, f.board[checkBelow.x][checkBelow.y]) == 1 {
+				makesLib++
+			}
+		}
+
+		//do we need to check if ko or not?
+		//just check to see if 
+		if makesLib > 0 {
+
+			//can never have ko if you make more than one lib
+			if makesLib > 1 {
+				fmt.Println("makes more than one lib")
+				return true
+			}
+
+			//cannot play a move that brings the board back to the previous position
+			testBoard = f.copy()
+
+			//what will the board look like after playing there
+			testBoard.board[pair.x][pair.y] = p
+
+			//does match the board's position after your last turn
+			f.board[f.moveList.Last().x][f.moveList.Last().y] = 0
+			if f.equals(testBoard) {
+				fmt.Println("breaks ko rule")
+				return false
+			}
+		}
+		fmt.Println("doesn't make any liberties, wouldn't have any")
+		return false
+	}
+	fmt.Println("has liberties, valid move")
+	return true 
+}
+
+func (f Board) equals(b Board) bool {
+	for i := range f.board {
+		for j := range f.board[i] {
+			if !(f.board[i][j] == b.board[i][j]) {
+				return false	
+			}
+		}
+	}
+	return true
+}
+
+func (f Board) copy() Board {
+	b := newBoard()
+	for i := range f.board {
+		for j := range f.board[i] {
+			b.board[i][j] = f.board[i][j]
+		}
+	}
+	b.moveList = f.moveList
+	b.maxX = f.maxX
+	b.maxY = f.maxY	
+	return *b
 }
 
 /**
@@ -251,15 +367,11 @@ func (f ArrayList) Print() {
 	}
 }
 
+func (f ArrayList) Last() Pair {
+	return f.array[f.last]
+}
+
 func main() {
 	board := newBoard()
-	board.board[0][1] = 2
-	board.board[18][18] = 2
-	board.board[1][0] = 2
-	board.board[1][1] = 2
-	board.board[1][2] = 2
-	board.board[1][4] = 2
 	board.printBoard()
-	stone := newPair(1,1)	
-	fmt.Println(board.checkLibs(*stone))
 }
