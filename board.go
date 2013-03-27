@@ -56,43 +56,79 @@ func (f Board) move(pair Pair, p int) (bool) {
 
 /**
 * Checks the liberties of a stone, including those of any group it is part of
+* Starting with a stone, push into the stack and then check all adjacent points
+* For every connected stone, push those stones into the stack
+* Until the stack is empty, check the adjacent spaces for every stone, adding each liberty to a list
+* Return the length of the list
 */
-func (f Board) checkLibs(pair Pair, p int) int {
+func (f Board) checkLibs(pair Pair) int {
+
+	//if the pair to check is out of the bounds of the board
+	if pair.x < 0 || pair.x > 18 || pair.y < 0 || pair.y > 18 {
+		return -1
+	}
 
 	stack := newStack()
 	checkedPairs := newArrayList()
-	cnt := 0
-	//TODO: IMPLEMENTATION
-	// first push every terminal stone into a stack
-	// then sum the liberties of all those stones
+	liberties := newArrayList()
+	p := f.board[pair.x][pair.y]
 
 	stack.push(newPair(pair.x,pair.y))
 	for !stack.isEmpty() {
 		checkPair := stack.pop()
 		if !checkedPairs.member(*(checkPair)) {
-			if f.board[checkPair.x-1][checkPair.y] == p {
-				stack.push(newPair(checkPair.x-1, checkPair.y))
-			} else if f.board[checkPair.x-1][checkPair.y] == 0 {
-				cnt++
+
+			//check to the left
+			if checkPair.x-1 >= 0 {
+				if f.board[checkPair.x-1][checkPair.y] == p {
+					stack.push(newPair(checkPair.x-1, checkPair.y))
+				} else if f.board[checkPair.x-1][checkPair.y] == 0 {
+					lib := newPair(checkPair.x-1,checkPair.y)
+					if !liberties.member(*lib) {
+						liberties.add(*lib)
+					}
+				}
 			}
-			if f.board[checkPair.x][checkPair.y-1] == p {
-				stack.push(newPair(checkPair.x, checkPair.y-1))
-			} else if f.board[checkPair.x][checkPair.y-1] == 0 {
-				cnt++
+
+			//check above
+			if checkPair.y-1 >= 0 {
+				if f.board[checkPair.x][checkPair.y-1] == p {
+					stack.push(newPair(checkPair.x, checkPair.y-1))
+				} else if f.board[checkPair.x][checkPair.y-1] == 0 {
+					lib := newPair(checkPair.x,checkPair.y-1)
+					if !liberties.member(*lib) {
+						liberties.add(*lib)
+					}				
+				}
 			}
-			if f.board[checkPair.x+1][checkPair.y] == p {
-				stack.push(newPair(checkPair.x+1, checkPair.y))
-			} else if f.board[checkPair.x+1][checkPair.y] == 0 {
-				cnt++
+
+			//check to the right
+			if checkPair.x+1 <= 18 {
+				if f.board[checkPair.x+1][checkPair.y] == p {
+					stack.push(newPair(checkPair.x+1, checkPair.y))
+				} else if f.board[checkPair.x+1][checkPair.y] == 0 {
+					lib := newPair(checkPair.x+1,checkPair.y)
+					if !liberties.member(*lib) {
+						liberties.add(*lib)
+					}				
+				}
 			}
-			if f.board[checkPair.x][checkPair.y+1] == p {
-				stack.push(newPair(checkPair.x, checkPair.y+1))
-			} else if f.board[checkPair.x][checkPair.y+1] == 0 {
-				cnt++
+
+			if checkPair.y+1 <= 18 {
+				if f.board[checkPair.x][checkPair.y+1] == p {
+					stack.push(newPair(checkPair.x, checkPair.y+1))
+				} else if f.board[checkPair.x][checkPair.y+1] == 0 {
+					lib := newPair(checkPair.x,checkPair.y+1)
+					if !liberties.member(*lib) {
+						liberties.add(*lib)
+					}			
+				}
 			}
 		}
+		checkedPairs.add(*checkPair)
 	}
-	return cnt
+	liberties.Print()
+	return liberties.length()
 }
 
 /**
@@ -115,16 +151,16 @@ type Stack struct{
 func newStack() *Stack {
 	f := new(Stack)
 	f.array = make([]*Pair,5)
-	f.last = 0
+	f.last = -1
 	return f
 }
 
 func (f Stack) isEmpty() bool {
-	return f.last==0
+	return f.last== -1
 }
 
 func (f *Stack) push(pair *Pair) bool {
-	if len(f.array) == cap(f.array) { //need to expand the stack
+	if f.last+1 >= cap(f.array) { //need to expand the stack
 		var newArray = make([]*Pair, len(f.array), (cap(f.array)+1)*2)
 		copy(newArray, f.array)
 		f.array = newArray
@@ -135,7 +171,7 @@ func (f *Stack) push(pair *Pair) bool {
 }
 
 func (f *Stack) pop() (*Pair) {
-	if f.last == 0 {
+	if f.last == -1 {
 		return nil
 	}
 	tmp := f.array[f.last]
@@ -180,8 +216,8 @@ type ArrayList struct{
 
 func newArrayList() *ArrayList {
 	f := new(ArrayList)
-	f.array = make([]Pair, 10)
-	f.last = 0
+	f.array = make([]Pair, 0, 10)
+	f.last = -1
 	return f
 }
 
@@ -195,19 +231,35 @@ func (f ArrayList) member(pair Pair) bool {
 }
 
 func (f *ArrayList) add(pair Pair) {
-	if f.last == cap(f.array) {
+	if f.last+1 >= cap(f.array) {
 		newArray := make([]Pair, len(f.array), (cap(f.array)+1)*2)
 		copy(newArray, f.array)
 		f.array = newArray
 	}
 	f.last++
+	f.array = f.array[:f.last+1]
 	f.array[f.last] = pair
+}
+
+func (f ArrayList) length() int {
+	return len(f.array)
+}
+
+func (f ArrayList) Print() {
+	for i := range f.array {
+		f.array[i].Print()
+	}
 }
 
 func main() {
 	board := newBoard()
-	board.board[2][2] = 1
+	board.board[0][1] = 2
+	board.board[18][18] = 2
+	board.board[1][0] = 2
+	board.board[1][1] = 2
+	board.board[1][2] = 2
+	board.board[1][4] = 2
 	board.printBoard()
-	stone := newPair(2,2)	
-	fmt.Println(board.checkLibs(*stone, 1))
+	stone := newPair(1,1)	
+	fmt.Println(board.checkLibs(*stone))
 }
